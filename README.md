@@ -1,4 +1,4 @@
-# 📧 Grafik Tabanlı E-posta Sınıflandırma (Graph Machine Learning)
+# Grafik Tabanlı E-posta Sınıflandırma (Graph Machine Learning)
 
 Bu proje, e-postaları **kişisel (personal)** veya **profesyonel (professional)** olarak sınıflandırmak için **graf tabanlı makine öğrenmesi yöntemlerini** kullanmaktadır.
 
@@ -13,9 +13,9 @@ Proje dört ana aşamadan oluşmaktadır:
 
 ---
 
-# 🚀 Proje Aşamaları
+# Proje Aşamaları
 
-## 1️⃣ PHASE 1: Veri Yükleme ve Ön İşleme
+## PHASE 1: Veri Yükleme ve Ön İşleme
 
 Bu aşamada ham e-posta verisi yüklenir ve analiz için hazırlanır.
 
@@ -43,7 +43,7 @@ Ayrıca:
 
 ---
 
-### 🏷 Veri Etiketleme
+### Veri Etiketleme
 
 E-postalar klasörlerine göre etiketlenir.
 
@@ -70,7 +70,7 @@ Kullanılan klasörler:
 
 ---
 
-### 📊 Örnekleme (Sampling)
+### Örnekleme (Sampling)
 
 Dengeli bir veri seti oluşturmak için:
 
@@ -85,7 +85,7 @@ Toplam veri:
 
 ---
 
-# 🌐 2️⃣ PHASE 2: Graf Oluşturma
+# PHASE 2: Graf Oluşturma
 
 Her e-posta graf içerisinde **bir düğüm (node)** olarak temsil edilir.
 
@@ -95,7 +95,7 @@ E-postalar arasındaki ilişkiler **kenar (edge)** olarak eklenir.
 
 ---
 
-## 🔹 Named Entity Recognition (NER)
+## Named Entity Recognition (NER)
 
 E-postalar içerisindeki varlıklar **spaCy** kullanılarak çıkarılır.
 
@@ -119,7 +119,7 @@ Sonuç:
 
 ---
 
-## 🔹 Bag-of-Words Benzerliği
+## Bag-of-Words Benzerliği
 
 E-postalar **TF-IDF** ile vektörleştirilir.
 
@@ -145,7 +145,7 @@ Sonuç:
 
 ---
 
-## 📊 Graf Özeti
+## Graf Özeti
 
 | Özellik         | Değer  |
 | --------------- | ------ |
@@ -157,7 +157,7 @@ Sonuç:
 
 ---
 
-# 🧠 3️⃣ PHASE 3: Graph Embedding Yöntemleri
+# PHASE 3: Graph Embedding Yöntemleri
 
 Bu aşamada graf üzerindeki düğümler için **vektör temsilleri (embedding)** öğrenilir.
 
@@ -165,7 +165,7 @@ Her yöntem **64 boyutlu embedding** üretir.
 
 ---
 
-## 🔹 DeepWalk
+## DeepWalk
 
 DeepWalk yöntemi:
 
@@ -180,7 +180,7 @@ DeepWalk embedding boyutu: (5000, 64)
 
 ---
 
-## 🔹 Node2Vec
+## Node2Vec
 
 Node2Vec, DeepWalk’un geliştirilmiş versiyonudur.
 
@@ -206,7 +206,7 @@ Node2Vec embedding boyutu: (5000, 64)
 
 ---
 
-## 🔹 SiGraC (Signed Graph Embedding)
+## SiGraC (Signed Graph Embedding)
 
 Bu yöntemde graf:
 
@@ -237,7 +237,7 @@ SiGraC embedding boyutu: (5000, 64)
 
 ---
 
-## 🔹 Graph Neural Network (GCN)
+## Graph Neural Network (GCN)
 
 Bu projede **2 katmanlı Graph Convolutional Network** kullanılmıştır.
 
@@ -273,7 +273,7 @@ GCN embedding boyutu: (5000, 64)
 
 ---
 
-# 📊 4️⃣ PHASE 4: Sınıflandırma ve Değerlendirme
+# PHASE 4: Sınıflandırma ve Değerlendirme
 
 Embedding'ler kullanılarak **Logistic Regression** modeli eğitilir.
 
@@ -293,7 +293,7 @@ Kullanılan metrikler:
 
 ---
 
-# 📈 Sonuçlar
+# Sonuçlar
 
 | Yöntem   | Accuracy  | F1 Score  |
 | -------- | --------- | --------- |
@@ -302,7 +302,7 @@ Kullanılan metrikler:
 | SiGraC   | 0.615     | 0.596     |
 | GCN      | **0.655** | **0.653** |
 
-### 📌 Yorum
+### Yorum
 
 En yüksek performansı **Graph Neural Network (GCN)** elde etmiştir.
 
@@ -310,7 +310,7 @@ Bu sonuç, **derin graf modellerinin graf yapısını daha iyi öğrenebildiğin
 
 ---
 
-# 🛠 Kullanılan Teknolojiler
+# Kullanılan Teknolojiler
 
 * Python
 * Pandas
@@ -325,7 +325,7 @@ Bu sonuç, **derin graf modellerinin graf yapısını daha iyi öğrenebildiğin
 
 ---
 
-# ⚙️ Kurulum
+# Kurulum
 
 Gerekli kütüphaneleri yüklemek için:
 
@@ -341,7 +341,7 @@ python -m spacy download en_core_web_sm
 
 ---
 
-# ▶️ Notebook Çalıştırma
+# Notebook Çalıştırma
 
 Notebook'u çalıştırmak için:
 

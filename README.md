@@ -1,358 +1,206 @@
-# Grafik Tabanlı E-posta Sınıflandırma (Graph Machine Learning)
-
-Bu proje, e-postaları **kişisel (personal)** veya **profesyonel (professional)** olarak sınıflandırmak için **graf tabanlı makine öğrenmesi yöntemlerini** kullanmaktadır.
-
-Projede e-postalar bir **graf yapısı** içerisinde temsil edilir ve farklı **graf embedding yöntemleri** ile düğüm temsilleri öğrenilir. Daha sonra bu temsiller kullanılarak sınıflandırma yapılır ve farklı yöntemlerin performansı karşılaştırılır.
-
-Proje dört ana aşamadan oluşmaktadır:
-
-1. Veri Toplama ve Ön İşleme
-2. Graf Oluşturma
-3. Embedding (Temsil Öğrenme)
-4. Sınıflandırma ve Performans Değerlendirmesi
+# Graf Tabanlı E-posta Sınıflandırması
+**Enron Veri Seti — GML Ödev 1**
 
 ---
 
-# Proje Aşamaları
+## Genel Bakış
 
-## PHASE 1: Veri Yükleme ve Ön İşleme
-
-Bu aşamada ham e-posta verisi yüklenir ve analiz için hazırlanır.
-
-### Yapılan İşlemler
-
-* `emails.csv` veri seti yüklenir.
-* Dosya yollarından **klasör bilgisi (folder)** çıkarılır.
-* E-postaların içeriği temizlenir.
-* Gereksiz başlıklar kaldırılır:
-
-Örnek kaldırılan başlıklar:
-
-* Message-ID
-* Date
-* From
-* To
-* Subject
-* Content-Type
-
-Ayrıca:
-
-* İmzalar temizlenir
-* Gereksiz boşluklar kaldırılır
-* Çok kısa e-postalar filtrelenir
+Bu proje, Enron E-posta Veri Seti üzerinde graf tabanlı bir sınıflandırma hattı uygulamaktadır. Her e-posta bir graf düğümü olarak temsil edilir; kenarlar ortak Adlandırılmış Varlıklar (NER) ve içerik benzerliği (BoW/TF-IDF) kriterlerine göre oluşturulur. Dört gömme yöntemi, Lojistik Regresyon sınıflandırıcı ile karşılaştırılır.
 
 ---
 
-### Veri Etiketleme
+## Proje Yapısı
 
-E-postalar klasörlerine göre etiketlenir.
+Boru hattı dört aşamadan oluşur:
 
-| Etiket | Anlam               |
-| ------ | ------------------- |
-| 0      | Profesyonel e-posta |
-| 1      | Kişisel e-posta     |
-
-Kullanılan klasörler:
-
-**Profesyonel klasörler**
-
-* sent
-* sent_items
-* _sent_mail
-* all_documents
-* discussion_threads
-
-**Kişisel klasörler**
-
-* personal
-* inbox
-* notes_inbox
+- Aşama 1: Veri Edinimi ve Ön İşleme
+- Aşama 2: Graf Oluşturma (NER + BoW kenarları)
+- Aşama 3: Gömme Teknikleri (DeepWalk, Node2Vec, SiGraC, GCN)
+- Aşama 4: Sınıflandırma ve Değerlendirme
 
 ---
 
-### Örnekleme (Sampling)
+## Aşama 1 — Veri Edinimi ve Ön İşleme
 
-Dengeli bir veri seti oluşturmak için:
+### Veri Seti
 
-| Sınıf       | Örnek Sayısı |
-| ----------- | ------------ |
-| Profesyonel | 2500         |
-| Kişisel     | 2500         |
+- Kaynak: Enron E-posta Veri Seti (`emails.csv`)
+- Ham boyut: 843.222 satır; `file` ve `message` sütunlarından oluşur.
 
-Toplam veri:
+### Klasör Tabanlı Etiketleme
 
-**5000 e-posta**
+E-postalar iki kategoriye ayrılır:
 
----
+- **Profesyonel (etiket = 0):** `sent`, `sent_items`, `_sent_mail`, `all_documents`, `discussion_threads`
+- **Kişisel (etiket = 1):** `personal`, `inbox`, `notes_inbox`
 
-# PHASE 2: Graf Oluşturma
+### Temizleme Adımları
 
-Her e-posta graf içerisinde **bir düğüm (node)** olarak temsil edilir.
+- E-posta başlıkları kaldırıldı (`From`, `To`, `Subject`, `X-*` alanları, MIME başlıkları)
+- Ayırıcı satırlar ve imzalar silindi
+- Boşluklar normalize edildi
+- Gövde uzunluğu 20 karakterin altındaki e-postalar elendi
 
-E-postalar arasındaki ilişkiler **kenar (edge)** olarak eklenir.
-
-İki farklı yöntem kullanılmıştır.
-
----
-
-## Named Entity Recognition (NER)
-
-E-postalar içerisindeki varlıklar **spaCy** kullanılarak çıkarılır.
-
-Kullanılan entity tipleri:
-
-* PERSON
-* ORG
-* GPE
-
-Eğer iki e-posta **en az iki ortak entity içeriyorsa**, aralarında bir kenar oluşturulur.
-
-Edge tipi:
-
-```
-type = "ner"
-```
-
-Sonuç:
-
-* **NER edge sayısı:** 25,156
+Nihai çalışma örneklemi: **5.000 e-posta** (sınıf başına 2.500, katmanlı örnekleme).
 
 ---
 
-## Bag-of-Words Benzerliği
+## Aşama 2 — Graf Oluşturma
 
-E-postalar **TF-IDF** ile vektörleştirilir.
+### NER Kenarları
 
-Ardından **cosine similarity** hesaplanır.
+spaCy (`en_core_web_sm`) modeli her e-postanın gövdesinden (ilk 500 karakter) `PERSON`, `ORG` ve `GPE` türünde adlandırılmış varlıkları çıkarır. İki e-posta en az 2 ortak benzersiz varlık paylaşıyorsa aralarında bir kenar oluşturulur.
 
-Eğer iki e-posta arasındaki benzerlik:
+### BoW/TF-IDF Kenarları
 
-```
-cosine similarity > 0.7
-```
+Her e-posta için TF-IDF vektörü hesaplanır (en fazla 5.000 özellik, durdurma sözcükleri çıkarılmış). Kosinüs benzerliği 0,70 eşiğini aşıyorsa iki e-posta arasında kenar eklenir. Bellek yönetimi için benzerlik 500'lük partiler hâlinde hesaplanır.
 
-ise aralarında kenar oluşturulur.
+### Birleşik Graf
 
-Edge tipi:
-
-```
-type = "bow"
-```
-
-Sonuç:
-
-* **BoW edge sayısı:** 36,422
+NER ve BoW kenarları birleştirilir (birleşim). Elde edilen `G = (V, E)` grafı **5.000 düğüm** içerir; her düğüm bir e-postaya karşılık gelir.
 
 ---
 
-## Graf Özeti
+## Aşama 3 — Gömme Teknikleri
 
-| Özellik         | Değer  |
-| --------------- | ------ |
-| Node sayısı     | 5000   |
-| Edge sayısı     | 56,037 |
-| NER edges       | 25,156 |
-| BoW edges       | 36,422 |
-| Ortalama derece | 22.41  |
+### Düğüm Özellik Matrisi
+
+TF-IDF matrisi `TruncatedSVD` (LSA) ile 64 boyuta indirgenir. Bu `X` matrisi SiGraC ve GCN için giriş olarak kullanılır.
 
 ---
 
-# PHASE 3: Graph Embedding Yöntemleri
+### DeepWalk
 
-Bu aşamada graf üzerindeki düğümler için **vektör temsilleri (embedding)** öğrenilir.
+Özel rastgele yürüyüş implementasyonu (düğüm başına 10 yürüyüş, uzunluk 10). Gensim Word2Vec Skip-gram modeli yürüyüş dizileri üzerinde eğitilir.
 
-Her yöntem **64 boyutlu embedding** üretir.
-
----
-
-## DeepWalk
-
-DeepWalk yöntemi:
-
-1. Graf üzerinde **random walk** üretir
-2. Walk’ları **Word2Vec Skip-Gram** modeli ile eğitir
-
-Çıktı:
-
-```
-DeepWalk embedding boyutu: (5000, 64)
-```
+| Parametre | Değer |
+|---|---|
+| Gömme boyutu | 64 |
+| Pencere boyutu | 5 |
+| Epoch sayısı | 5 |
 
 ---
 
-## Node2Vec
+### Node2Vec
 
-Node2Vec, DeepWalk’un geliştirilmiş versiyonudur.
+`node2vec` kütüphanesi. BFS (yerel) ve DFS (küresel) keşfini dengeleyen yanlı rastgele yürüyüşler kullanır.
 
-Farkı:
-
-* **Biaslı random walk** kullanması
-
-Parametreler:
-
-```
-dimensions = 64
-walk_length = 10
-num_walks = 10
-p = 1
-q = 0.5
-```
-
-Çıktı:
-
-```
-Node2Vec embedding boyutu: (5000, 64)
-```
+| Parametre | Değer |
+|---|---|
+| Gömme boyutu | 64 |
+| Yürüyüş uzunluğu | 10 |
+| Düğüm başına yürüyüş | 10 |
+| p (geri dönüş) | 1 |
+| q (iç-dış, DFS ağırlıklı) | 0,5 |
 
 ---
 
-## SiGraC (Signed Graph Embedding)
+### SiGraC — Çoklu Yakınlık Ölçüleri
 
-Bu yöntemde graf:
+SiGraC (Coşkun ve Koyutürk, *Bioinformatics* 2021), yakınlık ağırlıklı komşuluk matrisleri hesaplar ve düğüm özelliklerini iki katmanlı graf konvolüsyonu ile yayar. GCN'den farklı olarak öğrenilecek ağırlık matrisi yoktur; yakınlık matrisi yapı ağırlıklarını doğrudan taşır.
 
-* **pozitif kenarlar**
-* **negatif kenarlar**
-
-olarak ayrılır.
-
-Bu projede:
-
-| Edge tipi | Anlam   |
-| --------- | ------- |
-| NER       | Pozitif |
-| BoW       | Negatif |
-
-Ardından:
-
-1. Adjacency matrix oluşturulur
-2. Normalize edilir
-3. Signed embedding hesaplanır
-4. PCA ile 64 boyuta indirgenir
-
-Çıktı:
+Uygulama — kapalı-form yayılım (eğitim döngüsü yoktur):
 
 ```
-SiGraC embedding boyutu: (5000, 64)
+A_hat = D^{-1/2} (A_prox + I) D^{-1/2}
+H1    = ReLU(A_hat @ X)
+H2    = ReLU(A_hat @ H1)   ← nihai gömme, L2 normalize
 ```
+
+Beş farklı yakınlık ölçüsü değerlendirilir; her ölçü ayrı bir gömme vektörü üretir:
+
+| Ölçü | Formül | Davranış |
+|---|---|---|
+| **CN** — Ortak Komşular | `\|N(u) ∩ N(v)\|` | Ham ortak komşu sayısı. Yoğun bağlı çiftlere yüksek skor verir. |
+| **AA** — Adamic-Adar | `Σ 1/log(derece(w))` | Yüksek dereceli ortak komşuları cezalandırır; nadir köprü düğümleri tercih eder. |
+| **RA** — Kaynak Tahsisi | `Σ 1/derece(w)` | AA'ya benzer ancak merkez düğümler için daha güçlü ceza uygular. |
+| **HPI** — Merkez Destekli | `\|N(u)∩N(v)\| / min(derece)` | Merkez düğümler için yüksek skor üretir. |
+| **HDI** — Merkez Baskılayan | `\|N(u)∩N(v)\| / max(derece)` | Baskın merkez bağlantıları cezalandırır. Varsayılan SiGraC ölçüsü. |
+
+Her ölçü, değerlendirme tablosunda ayrı bir satır olarak yer alır. Ortak komşusu olmayan kenarlara graf bağlantısını korumak amacıyla `1,0` ikili ağırlık atanır.
 
 ---
 
-## Graph Neural Network (GCN)
+### GNN — Graf Evrişimsel Ağ
 
-Bu projede **2 katmanlı Graph Convolutional Network** kullanılmıştır.
+PyTorch Geometric ile oluşturulmuş 2 katmanlı GCN. Düğüm özellikleri 64 boyutlu TF-IDF/SVD vektörleridir. Çapraz entropi kaybı ile uçtan uca eğitilir (%80/%20 eğitim/test bölümü). Gömmeler eğitim sonrasında birinci konvolüsyon katmanından alınır.
 
-Model mimarisi:
-
-```
-Input Features
-      ↓
-GCNConv Layer
-      ↓
-ReLU
-      ↓
-Dropout
-      ↓
-GCNConv Layer
-      ↓
-Output
-```
-
-Eğitim parametreleri:
-
-```
-Epoch: 100
-Learning Rate: 0.01
-Hidden Layer: 64
-```
-
-Çıktı:
-
-```
-GCN embedding boyutu: (5000, 64)
-```
+| Parametre | Değer |
+|---|---|
+| Gizli kanal | 64 |
+| Çıkış | 2 sınıf |
+| Optimizer | Adam (lr=0,01, weight_decay=5e-4) |
+| Dropout | 0,5 |
+| Epoch | 100 |
 
 ---
 
-# PHASE 4: Sınıflandırma ve Değerlendirme
+## Aşama 4 — Sınıflandırma ve Değerlendirme
 
-Embedding'ler kullanılarak **Logistic Regression** modeli eğitilir.
+### Sınıflandırıcı
 
-Veri bölünmesi:
+1–3. yöntemlerden elde edilen gömmeler üzerinde Lojistik Regresyon (`scikit-learn`, `max_iter=1000`, `random_state=42`) eğitilir. GCN uçtan uca değerlendirilir. Eğitim/test bölümü: %80/%20, katmanlı.
 
-| Veri  | Oran |
-| ----- | ---- |
-| Train | %80  |
-| Test  | %20  |
+### Metrikler
 
-Kullanılan metrikler:
+- Doğruluk (Accuracy)
+- Ağırlıklı F1-Skoru
+- Eğitim Süresi (gömme süresi + sınıflandırıcı fit süresi)
 
-* Accuracy
-* Precision
-* Recall
-* F1 Score
+### Sonuçlar
 
----
+| Yöntem | Doğruluk | F1-Skoru | Notlar |
+|---|---|---|---|
+| DeepWalk | ~0,60 | ~0,58 | Rastgele yürüyüş tabanlı baz |
+| Node2Vec | ~0,59 | ~0,57 | DFS ağırlıklı (q=0,5) |
+| SiGraC [CN] | — | — | Ortak Komşular |
+| SiGraC [AA] | — | — | Adamic-Adar |
+| SiGraC [RA] | — | — | Kaynak Tahsisi |
+| SiGraC [HPI] | — | — | Merkez Destekli |
+| SiGraC [HDI] | — | — | Merkez Baskılayan (varsayılan) |
+| GNN (GCN) | ~0,67 | ~0,67 | Genel en iyi sonuç |
 
-# Sonuçlar
-
-| Yöntem   | Accuracy  | F1 Score  |
-| -------- | --------- | --------- |
-| DeepWalk | 0.631     | 0.620     |
-| Node2Vec | 0.628     | 0.615     |
-| SiGraC   | 0.615     | 0.596     |
-| GCN      | **0.655** | **0.653** |
-
-### Yorum
-
-En yüksek performansı **Graph Neural Network (GCN)** elde etmiştir.
-
-Bu sonuç, **derin graf modellerinin graf yapısını daha iyi öğrenebildiğini** göstermektedir.
+> SiGraC sonuç hücreleri notebook çalıştırıldıktan sonra gerçek değerlerle doldurulacaktır.
 
 ---
 
-# Kullanılan Teknolojiler
+## Kurulum ve Gereksinimler
 
-* Python
-* Pandas
-* NumPy
-* spaCy
-* NetworkX
-* Scikit-learn
-* Gensim
-* Node2Vec
-* PyTorch
-* PyTorch Geometric
+### Ortam
 
----
+Google Colab (Python 3.10+). Çalıştırmadan önce `emails.csv` dosyasını `/content/` dizinine yükleyin.
 
-# Kurulum
-
-Gerekli kütüphaneleri yüklemek için:
+### Bağımlılıklar
 
 ```bash
 pip install spacy scikit-learn networkx gensim node2vec torch torch-geometric
-```
-
-spaCy modelini indirmek için:
-
-```bash
 python -m spacy download en_core_web_sm
 ```
 
+### Çalıştırma Sırası
+
+Tüm hücreler yukarıdan aşağıya doğru sırasıyla çalıştırılmalıdır. Her aşama bir önceki aşamanın değişkenlerine bağımlıdır; hücre atlanmamalıdır.
+
 ---
 
-# Notebook Çalıştırma
+## Teknik Notlar
 
-Notebook'u çalıştırmak için:
+### SiGraC İmplementasyon Ayrıntısı
 
-```
-GML_H1.ipynb
-```
+Orijinal makale, öğrenilecek parametre içermeyen kapalı-form spektral konvolüsyon kullanır. Önceki implementasyonda gözetimsiz bir yeniden oluşturma kaybı (`sigmoid(H H^T) ≈ A_hat`) kullanılıyordu; bu yaklaşım seyrek graflarda gradyan çöküşüne neden oldu: `A_hat` kimlik matrisine yaklaştığında gömmeler sıfıra yakınsadı ve sınıflandırıcı yalnızca çoğunluk sınıfını tahmin eder hâle geldi. Mevcut implementasyon, normalize edilmiş yakınlık matrisi üzerinden doğrudan özellik yayılımı kullanmaktadır; bu hem makale tasarımına uygundur hem de bu bozunumu önler.
 
-dosyasını **Google Colab** veya **Jupyter Notebook** ile açabilirsiniz.
+### Yalıtılmış Kenar Çiftleri için Ağırlık
 
-Veri seti aynı klasörde bulunmalıdır:
+İki bağlı düğüm hiç ortak komşu paylaşmıyorsa AA, RA, HPI ve HDI ölçüleri 0 skoru döndürerek kenarı ağırlıklı graftan etkin şekilde çıkarır. Bu durumda graf bağlantısını korumak amacıyla `1,0` (ikili komşuluk) yedek ağırlık atanır.
 
-```
-emails.csv
-```
+### Bellek Optimizasyonu
+
+Yakınlık matrisi ve normalize edilmiş `A_hat`, işlem boyunca `scipy` seyrek matris formatında tutulur. Yoğun matrise dönüşüm yapılmaz. Özellik yayılımı (`A_hat @ X`), kenar yoğunluğunun düşük olduğu graflarda verimli olan seyrek-yoğun matris çarpımı ile gerçekleştirilir.
+
+---
+
+## Kaynaklar
+
+- Coşkun, M. ve Koyutürk, M. (2021). Node similarity-based graph convolution for link prediction in biological networks. *Bioinformatics*, 37(23), 4501–4508.
+- SiGraC kaynak kodu: https://github.com/mustafaCoskunAgu/SiGraC
+- Enron E-posta Veri Seti: https://www.cs.cmu.edu/~enron/
